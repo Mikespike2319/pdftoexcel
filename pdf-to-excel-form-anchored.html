@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF → Excel (Local, Offline) — Anchor Extractor</title>
+  <style>
+    /* Reset and base styles */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #f6f7f9;
+      color: #222;
+      margin: 0;
+      line-height: 1.5;
+    }
+    
+    /* Layout containers */
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    
+    /* Typography */
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    /* Grid layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+    
+    /* Form elements */
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-size: 14px;
+    }
+    
+    input[type="file"],
+    input[type="text"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e4e8;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s ease;
+    }
+    
+    input[type="file"]:focus,
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+    
+    textarea {
+      height: 160px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      white-space: pre;
+      resize: vertical;
+    }
+    
+    /* Row layouts */
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .row > div {
+      flex: 1;
+      min-width: 120px;
+    }
+    
+    /* Buttons */
+    .btn {
+      padding: 12px 20px;
+      border: 0;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .primary {
+      background: #0d6efd;
+      color: #fff;
+    }
+    
+    .primary:hover:not(:disabled) {
+      background: #0b5ed7;
+    }
+    
+    .secondary {
+      background: #6c757d;
+      color: #fff;
+    }
+    
+    .secondary:hover:not(:disabled) {
+      background: #5c636a;
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* Status indicators */
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    
+    .idle {
+      background: #eef0f4;
+      color: #444;
+    }
+    
+    .ok {
+      background: #d1f0d9;
+      color: #0f5132;
+    }
+    
+    .warn {
+      background: #fff4cc;
+      color: #8a6d3b;
+    }
+    
+    .err {
+      background: #ffd6d6;
+      color: #842029;
+    }
+    
+    /* Log area */
+    .log {
+      background: #111;
+      color: #eaeaea;
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    
+    /* Progress bar */
+    .progress {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: #0d6efd;
+      transition: width 0.25s ease;
+    }
+    
+    /* Utility classes */
+    .small {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 8px;
+    }
+    
+    /* Checkbox styling */
+    input[type="checkbox"] {
+      margin-right: 8px;
+      transform: scale(1.1);
+    }
+    
+    /* Details/summary styling */
+    details {
+      margin-top: 16px;
+    }
+    
+    details summary {
+      cursor: pointer;
+      padding: 8px 0;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    details summary:hover {
+      color: #0d6efd;
+    }
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+      .wrap {
+        padding: 16px;
+      }
+      
+      .card {
+        padding: 20px;
+      }
+      
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .row > div {
+        min-width: auto;
+      }
+      
+      h1 {
+        font-size: 20px;
+      }
+      
+      .btn {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .wrap {
+        padding: 12px;
+      }
+      
+      .card {
+        padding: 16px;
+      }
+      
+      input[type="file"],
+      input[type="text"],
+      input[type="number"],
+      textarea {
+        padding: 10px;
+        font-size: 16px; /* Prevents zoom on iOS */
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>PDF → Excel (Local, Offline) — Anchor Extractor</h1>
+    <div id="why" class="status idle">Ready.</div>
+    <div class="grid">
+      <div class="card">
+        <label>Choose PDF</label>
+        <input id="pdfFile" type="file" accept=".pdf"/>
+        <div class="row">
+          <div>
+            <label>Pages</label>
+            <input id="pageRange" type="text" value="1-500" placeholder="e.g. 1-5, 10, 20-25"/>
+          </div>
+          <div>
+            <label>Row tolerance (px)</label>
+            <input id="rowTol" type="number" value="6" step="0.5" min="1"/>
+          </div>
+          <div>
+            <label>Column tolerance (px)</label>
+            <input id="colTol" type="number" value="14" step="1" min="2"/>
+          </div>
+        </div>
+        <div class="row">
+          <label style="display: flex; align-items: center; margin: 0;">
+            <input id="twoCols" type="checkbox" checked/>
+            Auto-detect 2-column layout
+          </label>
+        </div>
+        <details>
+          <summary><strong>Fields Configuration (JSON)</strong> — Edit if labels change</summary>
+          <textarea id="fieldsJson">{
+  "tableHeader": ["Account Number","Name","Balance","Reason Uncollectable"],
+  "fields": [
+    {"label": "Date of Death", "key": "Date of Death"},
+    {"label": "Bankruptcy Case #", "key": "Bankruptcy Case #"},
+    {"label": "Chapter", "key": "Chapter"},
+    {"label": "Filed", "key": "Filed"},
+    {"label": "Dismissed", "key": "Dismissed"},
+    {"label": "District", "key": "District"},
+    {"label": "Attorney Name", "key": "Attorney Name"},
+    {"label": "Attorney Address", "key": "Attorney Address"},
+    {"label": "Telephone", "key": "Telephone"}
+  ]
+}</textarea>
+          <div class="small">Matching is case-insensitive; values to the right (and wrapped lines below) are captured.</div>
+        </details>
+        <div class="row">
+          <button id="go" class="btn primary">Parse & Export</button>
+          <button id="cancel" class="btn secondary" disabled>Cancel</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="state" class="status idle">Idle</div>
+        <div class="progress">
+          <div id="bar" class="bar"></div>
+        </div>
+        <div id="eta" class="small">ETA: —</div>
+        <div id="log" class="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="pdf.min.js"></script>
+<script src="xlsx.min.js"></script>
+<script>
+(function(){
+  const S = id=>document.getElementById(id);
+  const logEl=S('log'), why=S('why'), state=S('state'), bar=S('bar'), eta=S('eta');
+  let cancelled=false, startTime=0;
+
+  function log(m){ const t=new Date().toLocaleTimeString(); logEl.textContent += '['+t+'] '+m+'\\n'; logEl.scrollTop=logEl.scrollHeight; }
+  function setWhy(m,cls='idle'){ why.className='status '+cls; why.textContent=m; }
+  function setState(m,cls='idle'){ state.className='status '+cls; state.textContent=m; }
+  function setProgress(p){ bar.style.width=Math.max(0,Math.min(100,p))+'%'; }
+  function parsePages(str){ const pages=new Set(); (str||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(part=>{ if(part.includes('-')){ let [a,b]=part.split('-').map(x=>parseInt(x,10)); if(a&&b&&b>=a) for(let i=a;i<=b;i++) pages.add(i); } else { let n=parseInt(part,10); if(n>0) pages.add(n); } }); return Array.from(pages).sort((a,b)=>a-b); }
+  const isFile = location.protocol==='file:';
+  if(isFile){ setWhy('file:// detected — running on main thread for Windows reliability.', 'warn'); }
+  if(typeof pdfjsLib==='undefined') setWhy('PDF.js not found (put pdf.min.js next to this HTML).', 'err');
+  if(typeof XLSX==='undefined') setWhy('SheetJS not found (put xlsx.min.js next to this HTML).', 'err');
+  try{ pdfjsLib.GlobalWorkerOptions.workerSrc=''; }catch(e){}
+
+  S('cancel').addEventListener('click',()=>{ cancelled=true; setWhy('Cancelling…','warn'); });
+
+  S('go').addEventListener('click', async ()=>{
+    const f=S('pdfFile').files[0];
+    if(!f){ setWhy('Pick a PDF first.', 'err'); return; }
+    let cfg; try{ cfg=JSON.parse(S('fieldsJson').value); }catch(e){ setWhy('Fields JSON invalid: '+e.message,'err'); return; }
+    const pages=parsePages(S('pageRange').value); if(!pages.length){ setWhy('Bad page range.','err'); return; }
+    const rowTol=parseFloat(S('rowTol').value)||6, colTol=parseFloat(S('colTol').value)||14, twoCols=S('twoCols').checked;
+    cancelled=false; S('go').disabled=true; S('cancel').disabled=true; // enable cancel later when loop starts
+    setState('Loading PDF…','ok'); setProgress(0); eta.textContent='ETA: —'; startTime=Date.now();
+    log('File '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB)');
+    try{
+      const buf=await f.arrayBuffer();
+      const task=pdfjsLib.getDocument({data:buf});
+      const pdf=await task.promise;
+      log('PDF loaded. Pages: '+pdf.numPages);
+      const wb=XLSX.utils.book_new();
+      const tableHeaderLower=(cfg.tableHeader||[]).map(h=>h.toLowerCase());
+      const recordKeys=['Account Number','Name','Balance','Reason Uncollectable','Date of Death','Bankruptcy Case #','Chapter','Filed','Dismissed','District','Attorney Name','Attorney Address','Telephone'];
+      let processed=0, anySheets=0;
+
+      for(const p of pages){
+        if(cancelled) break;
+        if(p>pdf.numPages){ log('Skip p'+p+' (out of range)'); continue; }
+        S('cancel').disabled=false;
+        setState('Page '+p+'…','ok');
+        const page=await pdf.getPage(p);
+        const tc=await page.getTextContent({normalizeWhitespace:true, disableCombineTextItems:false});
+        const items=tc.items.map(it=>({text:it.str,x:it.transform[4],y:it.transform[5],w:it.width,h:it.height}));
+        if(!items.length){ log('p'+p+': no text items'); continue; }
+
+        // Optional two-column split via biggest x-gap
+        const regions = twoCols ? splitColumns(items) : [{minX:-Infinity,maxX:Infinity,items}];
+        let pageAOAs=[];
+
+        for(const region of regions){
+          const rItems=region.items;
+          // Row grouping
+          rItems.sort((a,b)=>b.y-a.y);
+          const rows=[]; let cur=[], lastY=null;
+          for(const it of rItems){
+            if(lastY===null || Math.abs(it.y-lastY)<=rowTol) cur.push(it); else { cur.sort((a,b)=>a.x-b.x); rows.push(cur); cur=[it]; }
+            lastY=it.y;
+          }
+          if(cur.length){ cur.sort((a,b)=>a.x-b.x); rows.push(cur); }
+
+          // 1) Try to detect the 4-col header
+          let headerIdx=-1, headerCols=[];
+          for(let i=0;i<rows.length;i++){
+            const text=rows[i].map(t=>t.text).join(' ').toLowerCase();
+            if(tableHeaderLower.every(h => text.includes(h))){
+              headerIdx=i; headerCols=rows[i].map(t=>({x:t.x,text:t.text}));
+              break;
+            }
+          }
+          if(headerIdx>=0){
+            // Build column boundaries from header items matching the header labels
+            const colXs = pickHeaderColumns(rows[headerIdx], cfg.tableHeader);
+            const boundaries = colXs;
+            // Extract subsequent rows until blank chunk or until we hit a known field label block
+            for(let i=headerIdx+1;i<rows.length;i++){
+              const rowTextLower = rows[i].map(t=>t.text).join(' ').toLowerCase();
+              if(isFieldRow(rowTextLower, cfg.fields)) break;
+              const arr=new Array(boundaries.length).fill('');
+              for(const it of rows[i]){
+                const idx = nearestIndex(it.x, boundaries);
+                arr[idx] += (arr[idx]?' ':'')+it.text;
+              }
+              if(arr.some(c=>c.trim().length)) pageAOAs.push(arr);
+            }
+          }
+
+          // 2) Anchor-based key/value extraction into a single record row
+          const record = Object.fromEntries(recordKeys.map(k=>[k,'']));
+          // Build set of label regexes
+          const patterns = (cfg.fields||[]).map(f => ({key:f.key, re:new RegExp('^\\s*'+escapeRe(f.label)+'\\s*:?', 'i')}));
+          // Walk rows; when label found, capture value to right + wrapped lines
+          for(let i=0;i<rows.length;i++){
+            const text = rows[i].map(t=>t.text).join(' ').trim();
+            if(!text) continue;
+            for(const pat of patterns){
+              const m = text.match(pat.re);
+              if(m){
+                const labelWidth = approxLabelEndX(rows[i], m[0]);
+                const valueNow = captureRightOfX(rows[i], labelWidth);
+                const more = captureWrappedBelow(rows, i+1, pat.re, rowTol);
+                const val = (valueNow + (more?(' '+more):'')).trim();
+                if(record.hasOwnProperty(pat.key)){
+                  record[pat.key] = (record[pat.key] ? (record[pat.key]+' ') : '') + val;
+                } else {
+                  record[pat.key]=val;
+                }
+                break;
+              }
+            }
+          }
+          // If we have at least one field filled, append as its own 1-row table with our fixed header order
+          if(Object.values(record).some(v=>v && v.trim().length)){
+            const header = recordKeys.slice();
+            const data = header.map(k=>record[k]||'');
+            pageAOAs.push(header);
+            pageAOAs.push(data);
+          }
+        } // regions
+
+        if(pageAOAs.length){
+          const ws=XLSX.utils.aoa_to_sheet(pageAOAs);
+          XLSX.utils.book_append_sheet(wb, ws, ('page_'+p).slice(0,31));
+          anySheets++;
+        }
+
+        processed++; const pct = Math.round(100*processed/pages.length); setProgress(pct);
+        const elapsed=(Date.now()-startTime)/1000; const rate=processed/Math.max(0.001,elapsed); const remain=pages.length-processed; const etaSec=Math.round(remain/rate);
+        eta.textContent='ETA: '+Math.floor(etaSec/60)+'m '+(etaSec%60)+'s';
+      }
+
+      if(cancelled){ setWhy('Cancelled.','warn'); return; }
+      const base=(f.name||'file.pdf').replace(/\.pdf$/i,'').replace(/[<>:"/\\|?*]/g,'_');
+      const ts=new Date().toISOString().replace(/[:.]/g,'').slice(0,15);
+      const out='extracted_'+base+'_'+ts+'.xlsx';
+      XLSX.writeFile(wb,out);
+      setWhy('Done. '+anySheets+' sheet(s) saved.','ok'); setState('Idle','idle'); log('Saved '+out);
+    }catch(err){
+      console.error(err); setWhy('Error: '+(err&&err.message||err),'err'); log('ERROR: '+(err&&err.message||err));
+    }finally{ S('go').disabled=false; S('cancel').disabled=true; }
+  });
+
+  function splitColumns(items){
+    // Find biggest horizontal gap in unique x positions -> split in half if gap big enough
+    const xs = Array.from(new Set(items.map(it=>Math.round(it.x)))).sort((a,b)=>a-b);
+    let maxGap=0, splitX=null;
+    for(let i=1;i<xs.length;i++){ const g=xs[i]-xs[i-1]; if(g>maxGap){ maxGap=g; splitX=(xs[i]+xs[i-1])/2; } }
+    if(maxGap<40){ // heuristics: if no big gap, treat as one region
+      return [{minX:-Infinity,maxX:Infinity,items:[...items]}];
+    }
+    const left = items.filter(it=>it.x<=splitX);
+    const right = items.filter(it=>it.x>splitX);
+    return [
+      {minX:-Infinity,maxX:splitX,items:left},
+      {minX:splitX,maxX:Infinity,items:right}
+    ];
+  }
+
+  function pickHeaderColumns(row, labels){
+    // Map each expected header to closest item x; fallback to sorted x of row
+    if(!row || !row.length) return [row.map(r=>r.x)[0]||0];
+    const xs=[];
+    for(const name of (labels||[])){
+      let bestX=null, bestScore=Infinity;
+      for(const it of row){
+        const score = stringDistance(it.text.toLowerCase(), name.toLowerCase());
+        if(score<bestScore){ bestScore=score; bestX=it.x; }
+      }
+      if(bestX!=null) xs.push(bestX);
+    }
+    const uniq = Array.from(new Set(xs.map(x=>Math.round(x)))).sort((a,b)=>a-b);
+    return uniq.length ? uniq : row.map(it=>it.x).sort((a,b)=>a-b);
+  }
+
+  function nearestIndex(x, arr){
+    let best=0, d=Infinity;
+    for(let i=0;i<arr.length;i++){ const dd=Math.abs(arr[i]-x); if(dd<d){ d=dd; best=i; } }
+    return best;
+  }
+
+  function escapeRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+  function approxLabelEndX(row, matchedLabelText){
+    // Sum widths of items until we cover matchedLabelText length
+    let needed = matchedLabelText.replace(/\s+/g,' ').trim().length;
+    let count=0, endX = row.length?row[0].x:0;
+    for(const it of row){
+      count += it.text.length;
+      endX = it.x + it.w;
+      if(count >= needed) break;
+    }
+    return endX + 2; // small margin
+  }
+
+  function captureRightOfX(row, xMin){
+    return row.filter(it=>it.x >= xMin).map(it=>it.text).join(' ').trim();
+  }
+
+  function captureWrappedBelow(rows, startIdx, nextLabelRegex, rowTol){
+    let out=[];
+    for(let i=startIdx;i<rows.length;i++){
+      const txt = rows[i].map(t=>t.text).join(' ').trim();
+      if(!txt) { continue; }
+      if(nextLabelRegex.test(txt)) break; // next label encountered
+      // if line starts with obvious new label-like token with colon, stop
+      if(/^[A-Za-z][A-Za-z \/#&()-]{1,30}:/.test(txt)) break;
+      out.push(txt);
+      // stop after 3 wrap lines to avoid runaway
+      if(out.length>=3) break;
+    }
+    return out.join(' ');
+  }
+
+  function stringDistance(a,b){
+    // simple Levenshtein distance (small inputs)
+    const m=a.length, n=b.length;
+    const dp=Array.from({length:m+1},()=>Array(n+1).fill(0));
+    for(let i=0;i<=m;i++) dp[i][0]=i;
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        const cost = a[i-1]===b[j-1]?0:1;
+        dp[i][j]=Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+      }
+    }
+    return dp[m][n];
+  }
+
+  log('Ready. Protocol='+location.protocol+' Platform='+navigator.platform);
+})();</script>
+</body>
+</html>

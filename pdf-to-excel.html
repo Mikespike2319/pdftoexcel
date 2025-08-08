@@ -404,34 +404,10 @@
                     log('Running from local file - using main thread processing for Windows compatibility', 'warning');
                 }
                 
-                // Load PDF.js
-                const pdfjsScript = document.createElement('script');
-                pdfjsScript.src = 'pdf.min.js';
-                pdfjsScript.onload = () => {
-                    log('PDF.js loaded successfully', 'success');
-                    console.log('PDF.js loaded, pdfjsLib available:', typeof pdfjsLib !== 'undefined');
-                    
-                    // Load SheetJS after PDF.js
-                    const xlsxScript = document.createElement('script');
-                    xlsxScript.src = 'xlsx.min.js';
-                    xlsxScript.onload = () => {
-                        log('SheetJS loaded successfully', 'success');
-                        console.log('SheetJS loaded, XLSX available:', typeof XLSX !== 'undefined');
-                        log('All libraries loaded successfully', 'success');
-                    };
-                    xlsxScript.onerror = (error) => {
-                        console.error('SheetJS loading error:', error);
-                        log('Error loading SheetJS library', 'error');
-                        log('Try refreshing the page or check if xlsx.min.js exists', 'error');
-                    };
-                    document.head.appendChild(xlsxScript);
-                };
-                pdfjsScript.onerror = (error) => {
-                    console.error('PDF.js loading error:', error);
-                    log('Error loading PDF.js library', 'error');
-                    log('Try refreshing the page or check if pdf.min.js exists', 'error');
-                };
-                document.head.appendChild(pdfjsScript);
+                // Libraries are already embedded in the HTML file
+                log('PDF.js and SheetJS libraries are embedded and ready', 'success');
+                console.log('PDF.js available:', typeof pdfjsLib !== 'undefined');
+                console.log('SheetJS available:', typeof XLSX !== 'undefined');
                 
             } catch (error) {
                 console.error('Library loading error:', error);
