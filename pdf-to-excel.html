@@ -373,30 +373,37 @@
         // Load embedded libraries
         function loadLibraries() {
             try {
+                log('Starting library loading...', 'info');
+                
                 // Load PDF.js
                 const pdfjsScript = document.createElement('script');
                 pdfjsScript.src = 'pdf.min.js';
                 pdfjsScript.onload = () => {
                     log('PDF.js loaded successfully', 'success');
+                    console.log('PDF.js loaded, pdfjsLib available:', typeof pdfjsLib !== 'undefined');
                     
                     // Load SheetJS after PDF.js
                     const xlsxScript = document.createElement('script');
                     xlsxScript.src = 'xlsx.min.js';
                     xlsxScript.onload = () => {
                         log('SheetJS loaded successfully', 'success');
+                        console.log('SheetJS loaded, XLSX available:', typeof XLSX !== 'undefined');
                         log('All libraries loaded successfully', 'success');
                     };
-                    xlsxScript.onerror = () => {
+                    xlsxScript.onerror = (error) => {
+                        console.error('SheetJS loading error:', error);
                         log('Error loading SheetJS library', 'error');
                     };
                     document.head.appendChild(xlsxScript);
                 };
-                pdfjsScript.onerror = () => {
+                pdfjsScript.onerror = (error) => {
+                    console.error('PDF.js loading error:', error);
                     log('Error loading PDF.js library', 'error');
                 };
                 document.head.appendChild(pdfjsScript);
                 
             } catch (error) {
+                console.error('Library loading error:', error);
                 log(`Error loading libraries: ${error.message}`, 'error');
             }
         }
@@ -422,14 +429,34 @@
 
         // Handle parse and export
         async function handleParseAndExport() {
+            console.log('Parse & Export button clicked');
+            
+            // Check if libraries are loaded
+            if (typeof pdfjsLib === 'undefined') {
+                log('PDF.js library not loaded. Please refresh the page and try again.', 'error');
+                return;
+            }
+            
+            if (typeof XLSX === 'undefined') {
+                log('SheetJS library not loaded. Please refresh the page and try again.', 'error');
+                return;
+            }
+            
             const file = elements.pdfFile.files[0];
             if (!file) {
                 log('Please select a PDF file first', 'error');
                 return;
             }
 
+            log('File selected: ' + file.name, 'info');
+            
             const options = getProcessingOptions();
-            if (!options) return;
+            if (!options) {
+                log('Failed to get processing options', 'error');
+                return;
+            }
+
+            log('Processing options: ' + JSON.stringify(options), 'info');
 
             try {
                 isProcessing = true;
@@ -439,10 +466,16 @@
                 log('Starting PDF processing...', 'success');
                 updateStatus('processing', 'Processing PDF...');
 
+                log('Converting file to ArrayBuffer...', 'info');
                 const arrayBuffer = await file.arrayBuffer();
+                log('ArrayBuffer created, size: ' + arrayBuffer.byteLength + ' bytes', 'info');
+
+                log('Starting PDF processing with worker...', 'info');
                 const results = await processPDF(arrayBuffer, options);
+                log('PDF processing completed, results: ' + results.length + ' pages', 'info');
                 
                 if (results.length > 0) {
+                    log('Exporting to Excel...', 'info');
                     await exportToExcel(results, file.name);
                     log('Export completed successfully!', 'success');
                     updateStatus('idle', 'Export completed successfully');
@@ -451,6 +484,7 @@
                     updateStatus('error', 'No tables detected');
                 }
             } catch (error) {
+                console.error('Error in handleParseAndExport:', error);
                 log(`Error processing PDF: ${error.message}`, 'error');
                 updateStatus('error', 'Processing failed');
             } finally {
