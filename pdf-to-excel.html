@@ -292,6 +292,11 @@
                     <label for="oneSheetPerPage">One worksheet per page (fallback)</label>
                 </div>
 
+                <div class="checkbox-group">
+                    <input type="checkbox" id="detectStructuredData" checked />
+                    <label for="detectStructuredData">Detect structured data (forms, field-value pairs)</label>
+                </div>
+
                 <div class="button-group">
                     <button id="parseBtn" class="btn btn-primary">Parse & Export</button>
                     <button id="cancelBtn" class="btn btn-secondary" disabled>Cancel</button>
@@ -346,6 +351,7 @@
             columnTolerance: document.getElementById('columnTolerance'),
             oneSheetPerTable: document.getElementById('oneSheetPerTable'),
             oneSheetPerPage: document.getElementById('oneSheetPerPage'),
+            detectStructuredData: document.getElementById('detectStructuredData'),
             parseBtn: document.getElementById('parseBtn'),
             cancelBtn: document.getElementById('cancelBtn'),
             status: document.getElementById('status'),
@@ -476,7 +482,8 @@
                 rowTolerance,
                 columnTolerance,
                 oneSheetPerTable: elements.oneSheetPerTable.checked,
-                oneSheetPerPage: elements.oneSheetPerPage.checked
+                oneSheetPerPage: elements.oneSheetPerPage.checked,
+                detectStructuredData: elements.detectStructuredData.checked
             };
         }
 
@@ -614,6 +621,122 @@
                     function detectTables(rows, columnTolerance) {
                         if (rows.length === 0) return [];
                         
+                        // Check if structured data detection is enabled
+                        if (options.detectStructuredData) {
+                            // First, try to detect structured form data (field-value pairs)
+                            const structuredTables = detectStructuredForms(rows);
+                            if (structuredTables.length > 0) {
+                                return structuredTables;
+                            }
+                        }
+                        
+                        // Fall back to regular table detection
+                        return detectRegularTables(rows, columnTolerance);
+                    }
+                    
+                    function detectStructuredForms(rows) {
+                        const tables = [];
+                        let currentTable = [];
+                        
+                        for (const row of rows) {
+                            const rowText = row.map(item => item.text).join(' ').trim();
+                            
+                            // Skip empty rows
+                            if (!rowText) continue;
+                            
+                            // Check for structured form patterns
+                            const isStructuredRow = detectStructuredRow(row);
+                            
+                            if (isStructuredRow) {
+                                currentTable.push(isStructuredRow);
+                            } else if (currentTable.length > 0) {
+                                // End of structured section
+                                if (currentTable.length > 0) {
+                                    tables.push(currentTable);
+                                }
+                                currentTable = [];
+                            }
+                        }
+                        
+                        if (currentTable.length > 0) {
+                            tables.push(currentTable);
+                        }
+                        
+                        return tables;
+                    }
+                    
+                    function detectStructuredRow(row) {
+                        const rowText = row.map(item => item.text).join(' ');
+                        
+                        // Patterns for account information
+                        const patterns = [
+                            // Account header pattern
+                            {
+                                regex: /(Account Number|Name|Balance|Reason Uncollectable)/i,
+                                type: 'header',
+                                columns: ['Account Number', 'Name', 'Balance', 'Reason Uncollectable']
+                            },
+                            // Date of Death pattern
+                            {
+                                regex: /Date of Death/i,
+                                type: 'field',
+                                columns: ['Field', 'Value']
+                            },
+                            // Bankruptcy pattern
+                            {
+                                regex: /Bankruptcy case #|Chapter|Filed|Dismissed|District/i,
+                                type: 'field',
+                                columns: ['Field', 'Value']
+                            },
+                            // Attorney pattern
+                            {
+                                regex: /Attorney Name|Attorney Address|Telephone/i,
+                                type: 'field',
+                                columns: ['Field', 'Value']
+                            },
+                            // Generic field-value pattern
+                            {
+                                regex: /^([^:]+):\s*(.+)$/,
+                                type: 'field_value',
+                                columns: ['Field', 'Value']
+                            }
+                        ];
+                        
+                        for (const pattern of patterns) {
+                            if (pattern.regex.test(rowText)) {
+                                return parseStructuredRow(row, pattern);
+                            }
+                        }
+                        
+                        return null;
+                    }
+                    
+                    function parseStructuredRow(row, pattern) {
+                        const rowText = row.map(item => item.text).join(' ');
+                        
+                        if (pattern.type === 'header') {
+                            // Create header row
+                            return pattern.columns;
+                        } else if (pattern.type === 'field') {
+                            // Parse field-value pairs
+                            const parts = rowText.split(/\s*-\s*/);
+                            if (parts.length >= 2) {
+                                return [parts[0].trim(), parts.slice(1).join(' - ').trim()];
+                            } else {
+                                return [rowText, ''];
+                            }
+                        } else if (pattern.type === 'field_value') {
+                            // Parse "Field: Value" format
+                            const match = rowText.match(/^([^:]+):\s*(.+)$/);
+                            if (match) {
+                                return [match[1].trim(), match[2].trim()];
+                            }
+                        }
+                        
+                        return [rowText, ''];
+                    }
+                    
+                    function detectRegularTables(rows, columnTolerance) {
                         // Collect all x positions for column detection
                         const allX = [];
                         for (const row of rows) {
