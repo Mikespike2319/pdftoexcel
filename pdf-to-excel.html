@@ -365,6 +365,11 @@
 
         // Initialize the application
         function init() {
+            // Detect Windows and log browser info
+            const isWindows = navigator.platform.indexOf('Win') !== -1;
+            const browserInfo = `${navigator.userAgent.split(' ').pop()}`;
+            log(`Running on ${isWindows ? 'Windows' : 'other OS'} with ${browserInfo}`, 'info');
+            
             loadLibraries();
             setupEventListeners();
             log('Application initialized successfully', 'success');
@@ -374,6 +379,12 @@
         function loadLibraries() {
             try {
                 log('Starting library loading...', 'info');
+                
+                // Check if running from file:// protocol (common on Windows)
+                const isFileProtocol = window.location.protocol === 'file:';
+                if (isFileProtocol) {
+                    log('Running from local file - some features may be limited', 'warning');
+                }
                 
                 // Load PDF.js
                 const pdfjsScript = document.createElement('script');
@@ -393,12 +404,14 @@
                     xlsxScript.onerror = (error) => {
                         console.error('SheetJS loading error:', error);
                         log('Error loading SheetJS library', 'error');
+                        log('Try refreshing the page or check if xlsx.min.js exists', 'error');
                     };
                     document.head.appendChild(xlsxScript);
                 };
                 pdfjsScript.onerror = (error) => {
                     console.error('PDF.js loading error:', error);
                     log('Error loading PDF.js library', 'error');
+                    log('Try refreshing the page or check if pdf.min.js exists', 'error');
                 };
                 document.head.appendChild(pdfjsScript);
                 
@@ -929,14 +942,25 @@
                 }
             }
             
-            // Generate filename
+            // Generate filename (Windows compatible)
             const timestamp = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
             const baseName = originalFilename.replace(/\.pdf$/i, '');
-            const filename = `extracted_${baseName}_${timestamp}.xlsx`;
+            // Remove invalid characters for Windows filenames
+            const cleanBaseName = baseName.replace(/[<>:"/\\|?*]/g, '_');
+            const filename = `extracted_${cleanBaseName}_${timestamp}.xlsx`;
             
-            // Save the file
-            XLSX.writeFile(workbook, filename);
-            log(`Exported ${tableCount} tables to ${filename}`, 'success');
+            // Save the file (Windows compatible)
+            try {
+                XLSX.writeFile(workbook, filename);
+                log(`Exported ${tableCount} tables to ${filename}`, 'success');
+            } catch (error) {
+                console.error('Excel export error:', error);
+                log(`Error saving Excel file: ${error.message}`, 'error');
+                // Fallback: try with a simpler filename
+                const fallbackFilename = `extracted_data_${timestamp}.xlsx`;
+                XLSX.writeFile(workbook, fallbackFilename);
+                log(`Saved with fallback filename: ${fallbackFilename}`, 'success');
+            }
         }
 
         // Handle cancel

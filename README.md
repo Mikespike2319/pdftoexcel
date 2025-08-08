@@ -89,6 +89,25 @@ README.md           # This file
 - Support for Web Workers (for background processing)
 - At least 100MB of available memory for large PDFs
 
+## Windows Compatibility
+
+### Running on Windows
+1. **Download all files** to a folder on your Windows computer
+2. **Open the HTML file** in your browser (Chrome, Firefox, Edge, or Safari)
+3. **Allow file access** if prompted by your browser
+4. **Select a PDF file** and process as normal
+
+### Windows-Specific Notes
+- **File Protocol**: The app works when opened directly from file system
+- **Filename Compatibility**: Invalid Windows filename characters are automatically replaced
+- **Browser Security**: Some browsers may block file access - allow if prompted
+- **Memory Usage**: Large PDFs may require more memory on Windows
+
+### Troubleshooting on Windows
+- **If libraries don't load**: Refresh the page or check if all files are in the same folder
+- **If file download fails**: Check browser download settings and allow downloads
+- **If processing is slow**: Close other browser tabs to free up memory
+
 ## Privacy
 
 This application processes all data locally in your browser. No files or data are sent to any external servers. Your PDF content never leaves your device.
