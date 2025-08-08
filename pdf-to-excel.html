@@ -562,9 +562,21 @@
         // Process PDF using Web Worker
         async function processPDF(arrayBuffer, options) {
             return new Promise((resolve, reject) => {
+                // Check if Web Workers are supported
+                if (typeof Worker === 'undefined') {
+                    log('Web Workers not supported, using fallback processing', 'warning');
+                    // Fallback to main thread processing
+                    processPDFMainThread(arrayBuffer, options).then(resolve).catch(reject);
+                    return;
+                }
                 const workerCode = `
                     // PDF processing worker
-                    importScripts('pdf.min.js');
+                    try {
+                        importScripts('pdf.min.js');
+                    } catch (error) {
+                        self.postMessage({ type: 'error', message: 'Failed to load PDF.js in worker: ' + error.message });
+                        return;
+                    }
                     
                     self.onmessage = async function(e) {
                         const { arrayBuffer, options } = e.data;
@@ -894,6 +906,99 @@
                 
                 currentWorker.postMessage({ arrayBuffer, options });
             });
+        }
+
+        // Fallback PDF processing in main thread
+        async function processPDFMainThread(arrayBuffer, options) {
+            try {
+                // Set up PDF.js
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.min.js';
+                
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdf = await loadingTask.promise;
+                
+                const results = [];
+                let processedPages = 0;
+                
+                for (const pageNum of options.pages) {
+                    if (pageNum > pdf.numPages) {
+                        log(`Warning: Page ${pageNum} exceeds PDF length (${pdf.numPages})`, 'warning');
+                        continue;
+                    }
+                    
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent({
+                        normalizeWhitespace: true,
+                        disableCombineTextItems: false
+                    });
+                    
+                    const tables = extractTablesFromPage(textContent, options);
+                    
+                    results.push({
+                        page: pageNum,
+                        tables: tables,
+                        warnings: []
+                    });
+                    
+                    processedPages++;
+                    updateProgress(processedPages, options.pages.length);
+                }
+                
+                return results;
+                
+            } catch (error) {
+                throw new Error(`PDF processing failed: ${error.message}`);
+            }
+        }
+
+        // Extract tables from page (main thread version)
+        function extractTablesFromPage(textContent, options) {
+            const items = textContent.items.map(item => ({
+                text: item.str,
+                x: item.transform[4],
+                y: item.transform[5],
+                width: item.width,
+                height: item.height
+            }));
+            
+            // Group items into rows
+            const rows = groupIntoRows(items, options.rowTolerance);
+            
+            // Detect tables
+            const tables = detectTables(rows, options.columnTolerance);
+            
+            return tables;
+        }
+
+        // Group items into rows (main thread version)
+        function groupIntoRows(items, rowTolerance) {
+            // Sort by y coordinate (descending)
+            items.sort((a, b) => b.y - a.y);
+            
+            const rows = [];
+            let currentRow = [];
+            let lastY = null;
+            
+            for (const item of items) {
+                if (lastY === null || Math.abs(item.y - lastY) <= rowTolerance) {
+                    currentRow.push(item);
+                } else {
+                    if (currentRow.length > 0) {
+                        // Sort items in row by x coordinate
+                        currentRow.sort((a, b) => a.x - b.x);
+                        rows.push(currentRow);
+                    }
+                    currentRow = [item];
+                }
+                lastY = item.y;
+            }
+            
+            if (currentRow.length > 0) {
+                currentRow.sort((a, b) => a.x - b.x);
+                rows.push(currentRow);
+            }
+            
+            return rows;
         }
 
         // Export results to Excel
