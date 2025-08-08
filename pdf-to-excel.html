@@ -298,8 +298,9 @@
                 </div>
 
                 <div class="button-group">
-                    <button id="parseBtn" class="btn btn-primary">Parse & Export</button>
+                    <button id="parseBtn" class="btn btn-primary" onclick="console.log('Parse button clicked via onclick'); handleParseAndExport();">Parse & Export</button>
                     <button id="cancelBtn" class="btn btn-secondary" disabled>Cancel</button>
+                    <button id="testBtn" class="btn btn-secondary" onclick="console.log('Test button works!'); alert('Test button clicked!');">Test Button</button>
                 </div>
             </div>
 
@@ -370,9 +371,26 @@
             const browserInfo = `${navigator.userAgent.split(' ').pop()}`;
             log(`Running on ${isWindows ? 'Windows' : 'other OS'} with ${browserInfo}`, 'info');
             
+            // Test button functionality immediately
+            console.log('Testing button functionality...');
+            const testBtn = document.getElementById('testBtn');
+            if (testBtn) {
+                console.log('Test button found:', testBtn);
+            } else {
+                console.error('Test button not found!');
+            }
+            
             loadLibraries();
             setupEventListeners();
             log('Application initialized successfully', 'success');
+            
+            // Check libraries after a short delay
+            setTimeout(() => {
+                console.log('Library check - pdfjsLib:', typeof pdfjsLib);
+                console.log('Library check - XLSX:', typeof XLSX);
+                log(`PDF.js loaded: ${typeof pdfjsLib !== 'undefined'}`, 'info');
+                log(`SheetJS loaded: ${typeof XLSX !== 'undefined'}`, 'info');
+            }, 2000);
         }
 
         // Load embedded libraries
@@ -423,9 +441,29 @@
 
         // Setup event listeners
         function setupEventListeners() {
-            elements.parseBtn.addEventListener('click', handleParseAndExport);
-            elements.cancelBtn.addEventListener('click', handleCancel);
-            elements.pdfFile.addEventListener('change', handleFileSelect);
+            console.log('Setting up event listeners...');
+            console.log('Parse button element:', elements.parseBtn);
+            
+            if (elements.parseBtn) {
+                elements.parseBtn.addEventListener('click', (e) => {
+                    console.log('Button clicked!');
+                    e.preventDefault();
+                    handleParseAndExport();
+                });
+                console.log('Parse button event listener added');
+            } else {
+                console.error('Parse button not found!');
+            }
+            
+            if (elements.cancelBtn) {
+                elements.cancelBtn.addEventListener('click', handleCancel);
+            }
+            
+            if (elements.pdfFile) {
+                elements.pdfFile.addEventListener('change', handleFileSelect);
+            }
+            
+            console.log('Event listeners setup complete');
         }
 
         // Handle file selection
