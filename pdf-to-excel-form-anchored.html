@@ -363,16 +363,34 @@
   if(typeof pdfjsLib==='undefined') setWhy('PDF.js not found (put pdf.min.js next to this HTML).', 'err');
   if(typeof XLSX==='undefined') setWhy('SheetJS not found (put xlsx.min.js next to this HTML).', 'err');
   
-  // Disable PDF.js worker for file:// protocol compatibility
+  // Completely disable PDF.js worker for file:// protocol compatibility
   try { 
     if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) { 
-      pdfjsLib.GlobalWorkerOptions.workerSrc = null; 
+      pdfjsLib.GlobalWorkerOptions.workerSrc = ''; 
     } 
   } catch(e){}
   try { 
     if (pdfjsLib && 'disableWorker' in pdfjsLib) { 
       pdfjsLib.disableWorker = true; 
     } 
+  } catch(e){}
+  try {
+    // Override the worker factory to prevent any worker creation
+    if (pdfjsLib && pdfjsLib.PDFWorker) {
+      pdfjsLib.PDFWorker = function() {
+        return {
+          promise: Promise.resolve(),
+          destroy: function() {}
+        };
+      };
+    }
+  } catch(e){}
+  try {
+    // Additional worker disabling for newer PDF.js versions
+    if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+      pdfjsLib.GlobalWorkerOptions.workerPort = null;
+    }
   } catch(e){}
 
   S('cancel').addEventListener('click',()=>{ cancelled=true; setWhy('Cancelling…','warn'); });
@@ -571,6 +589,17 @@
       if(out.length>=3) break;
     }
     return out.join(' ');
+  }
+
+  function isFieldRow(text, fields) {
+    // Check if this row contains any field labels
+    if (!fields || !fields.length) return false;
+    for (const field of fields) {
+      if (text.includes(field.label.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function stringDistance(a,b){
