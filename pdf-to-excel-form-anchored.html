@@ -362,7 +362,18 @@
   if(isFile){ setWhy('file:// detected — running on main thread for Windows reliability.', 'warn'); }
   if(typeof pdfjsLib==='undefined') setWhy('PDF.js not found (put pdf.min.js next to this HTML).', 'err');
   if(typeof XLSX==='undefined') setWhy('SheetJS not found (put xlsx.min.js next to this HTML).', 'err');
-  try{ pdfjsLib.GlobalWorkerOptions.workerSrc=''; }catch(e){}
+  
+  // Disable PDF.js worker for file:// protocol compatibility
+  try { 
+    if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) { 
+      pdfjsLib.GlobalWorkerOptions.workerSrc = null; 
+    } 
+  } catch(e){}
+  try { 
+    if (pdfjsLib && 'disableWorker' in pdfjsLib) { 
+      pdfjsLib.disableWorker = true; 
+    } 
+  } catch(e){}
 
   S('cancel').addEventListener('click',()=>{ cancelled=true; setWhy('Cancelling…','warn'); });
 
@@ -377,7 +388,7 @@
     log('File '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB)');
     try{
       const buf=await f.arrayBuffer();
-      const task=pdfjsLib.getDocument({data:buf});
+      const task=pdfjsLib.getDocument({data:buf, useWorker: false});
       const pdf=await task.promise;
       log('PDF loaded. Pages: '+pdf.numPages);
       const wb=XLSX.utils.book_new();
